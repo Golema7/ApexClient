@@ -1,30 +1,34 @@
 # ApexClient
 
-A client-side Fabric mod for Minecraft Java 1.21.11. The first feature is a read-only auction flip scanner for a private test server.
+A client-side Fabric mod for Minecraft Java 1.21.11. The first feature is an auction scanner and user-toggleable Auto Flip mode for a private test server.
 
-## Auction scanner
+## Auction scanner and Auto Flip
 
-The scanner observes item tooltips in visible marketplace screens. It records pages while `/ah` or `/orders` is open, then compares auction stack prices with open order prices.
+The scanner reads item tooltips from visible /ah and /orders screens. It records pages and ranks positive order matches. Auto Flip is opt-in through the scanner screen's Start Auto Flip button.
 
-- `/ah` prices are treated as the total price for the displayed stack.
-- `/orders` prices marked `each` are treated as per-item prices; remaining order quantity is read from the Delivered progress line.
-- Suggestions are ranked by estimated gross profit and return.
-- Rounded `K/M/B/T` prices are marked approximate and use conservative bounds.
-- A capture older than two minutes is considered stale.
-- Only captured visible pages are considered. Open more pages in both menus to expand the comparison.
-- Results are estimates before any server fees or other costs. Item matching uses the visible item name and tooltip text, so unusual plugin lore can affect matching.
-- This feature does not buy, list, deliver, click, send commands, or otherwise interact with the market.
+When enabled, Auto Flip:
+
+- Opens /ah and advances through visible auction pages.
+- Compares per-item prices for matching item names and tooltip details.
+- Requires at least three comparable listings, a minimum 20% estimated gross return, and a purchase stack total no greater than $500,000.
+- Reopens and rechecks a candidate before it clicks the listing and confirms only when it finds a visible Yes button.
+- Waits for the purchased stack to arrive, equips it, and sends /ah sell <average stack price>.
+- Stops if the page button, confirmation button, inventory result, or sell result cannot be verified.
+- Can be stopped from the scanner button. Press M to open the scanner while it is active.
+
+The price benchmark is the arithmetic mean of the lower-bound per-item prices from captured listings with matching item identity, then multiplied by stack quantity and rounded down. The screenshot example indicated /ah prices are whole-stack totals; Auto Flip uses that convention for /ah sell <price>. The minimum return is gross and fees are unknown, so it is not a guarantee of net profit. The current purchase cap and margin are conservative fixed defaults.
+
+Captures are limited to pages the client sees, stay in memory for the current game session, and become stale after two minutes. Auto Flip uses only fresh captures. This feature is intended for the user's own private test server.
 
 ## Use
 
-1. Install Fabric Loader for Minecraft 1.21.11 and put Fabric API in the same `mods` folder.
-2. Build this project with Java 21 using `gradlew.bat build` on Windows.
-3. Copy `build/libs/apexclient-0.1.0.jar` into your Minecraft `mods` folder.
-4. Join the test server and open `/ah`. Visit the pages you want included.
-5. Open `/orders` and visit its pages.
-6. Close the menu and press **M** to open the scanner. The key can be changed in Options > Controls > Key Binds.
+1. Install Fabric Loader for Minecraft Java 1.21.11 and put Fabric API in the same mods folder.
+2. Build with Java 21 using gradlew.bat build on Windows.
+3. Copy build/libs/apexclient-0.1.0.jar into the Minecraft mods folder.
+4. Join the private test server and open the scanner with M.
+5. Click Start Auto Flip to scan, buy, and relist when the configured conditions pass. Click Stop Auto Flip to stop the process.
 
-The scanner keeps captures in memory for the current game session only. If the list is empty, visit the marketplace pages and reopen the scanner.
+The original /orders scanner remains read-only. Auto Flip's transaction flow must be tested with the server plugin before merging.
 
 ## Build requirements
 

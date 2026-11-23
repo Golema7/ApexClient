@@ -9,6 +9,7 @@ import net.minecraft.resources.Identifier;
 
 public final class ApexClient implements ClientModInitializer {
     private static final MarketScanner SCANNER = new MarketScanner();
+    private static final AutoFlipBot AUTO_FLIP = new AutoFlipBot(SCANNER);
     private static KeyMapping openScannerKey;
 
     @Override
@@ -25,10 +26,16 @@ public final class ApexClient implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             SCANNER.tick(client);
+            AUTO_FLIP.tick(client);
 
             while (openScannerKey.consumeClick()) {
-                if (client.player != null && client.screen == null) {
-                    client.setScreen(new AuctionScannerScreen(SCANNER));
+                if (client.player == null) {
+                    continue;
+                }
+                if (AUTO_FLIP.isActive()) {
+                    client.setScreen(new AuctionScannerScreen(SCANNER, AUTO_FLIP));
+                } else if (client.screen == null) {
+                    client.setScreen(new AuctionScannerScreen(SCANNER, AUTO_FLIP));
                 }
             }
         });

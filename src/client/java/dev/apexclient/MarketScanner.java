@@ -87,6 +87,26 @@ final class MarketScanner {
         return opportunities;
     }
 
+    PageSnapshot page(MarketSide side, int pageNumber) {
+        return pages.get(side.name() + ":" + pageNumber);
+    }
+
+    List<MarketListing> freshListings(MarketSide side, long nowMillis) {
+        List<MarketListing> result = new ArrayList<>();
+        for (PageSnapshot page : pages.values()) {
+            if (page.side() == side && nowMillis - page.capturedAtMillis() <= STALE_AFTER_MILLIS) {
+                result.addAll(page.listings());
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    void clearAuctionPages() {
+        pages.entrySet().removeIf(entry -> entry.getValue().side() == MarketSide.AUCTION);
+        opportunities = OpportunityFinder.rank(pages.values(), System.currentTimeMillis());
+        resetActiveScreen();
+    }
+
     int pageCount(MarketSide side) {
         int count = 0;
         for (PageSnapshot page : pages.values()) {
