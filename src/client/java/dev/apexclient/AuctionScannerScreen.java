@@ -2,6 +2,7 @@ package dev.apexclient;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 import java.math.BigDecimal;
@@ -114,7 +115,9 @@ final class AuctionScannerScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
         int panelWidth = Math.min(PANEL_WIDTH, Math.max(220, this.width - 16));
         int panelHeight = Math.min(PANEL_HEIGHT, Math.max(210, this.height - 16));
         int left = (this.width - panelWidth) / 2;
@@ -122,13 +125,13 @@ final class AuctionScannerScreen extends Screen {
         int buttonX = left + 14;
         int buttonY = top + panelHeight - 48;
         int buttonWidth = panelWidth - 28;
-        if (button == 0
+        if (event.button() == 0
                 && mouseX >= buttonX && mouseX <= buttonX + buttonWidth
                 && mouseY >= buttonY && mouseY <= buttonY + 22) {
             autoFlip.toggle(this.minecraft);
             return true;
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(event, doubleClick);
     }
 
     private String trimToWidth(String text, int maximumWidth) {
