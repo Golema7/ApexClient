@@ -252,20 +252,24 @@ final class AutoFlipBot {
         long now = System.currentTimeMillis();
         candidate = bestCandidate(now);
         if (candidate == null) {
-            MarketOpportunity orderMatch = scanner.opportunities().stream()
+            MarketOpportunity skipped = scanner.opportunities().stream()
                     .filter(opportunity -> opportunity.isFresh(now))
+                    .filter(opportunity -> opportunity.purchase().priceUpperBound().compareTo(MAX_BUY_TOTAL) > 0
+                            || inventoryCountByItemId(opportunity.purchase().itemId()) > 0)
                     .findFirst()
                     .orElse(null);
-            if (orderMatch != null) {
-                MarketListing purchase = orderMatch.purchase();
+            if (skipped != null) {
+                MarketListing purchase = skipped.purchase();
                 String opportunityKey = purchase.identityKey() + ":" + purchase.page() + ":"
                         + purchase.slot() + ":" + purchase.priceUpperBound().toPlainString();
-                status = "An /orders match exists, but no positive comparable /ah-average relist was found.";
+                String reason = purchase.priceUpperBound().compareTo(MAX_BUY_TOTAL) > 0
+                        ? "it exceeds the $500,000 per-stack cap"
+                        : "that item is already in your inventory";
+                status = "Profitable /ah-average match skipped because " + reason + ".";
                 if (!opportunityKey.equals(lastSkippedOpportunityKey)) {
                     lastSkippedOpportunityKey = opportunityKey;
-                    notify(client, "Found an /orders-based profit suggestion for "
-                            + purchase.itemName() + " x" + purchase.quantity()
-                            + ", but the comparable /ah average does not support a profitable relist. Skipping it and continuing.");
+                    notify(client, "Found an /ah-average opportunity for " + purchase.itemName()
+                            + " x" + purchase.quantity() + ", but skipped it because " + reason + ".");
                 }
             } else {
                 status = "No qualifying /ah-average flip found; scanning again shortly.";
@@ -518,28 +522,14 @@ final class AutoFlipBot {
     }
 
     private MarketListing bestCandidate(long now) {
-        List<MarketListing> listings = scanner.freshListings(MarketSide.AUCTION, now);
-        return listings.stream()
-                .filter(listing -> listing.quantity() > 0)
+        return scanner.opportunities().stream()
+                .filter(opportunity -> opportunity.isFresh(now))
+                .map(MarketOpportunity::purchase)
                 .filter(listing -> listing.priceUpperBound().compareTo(MAX_BUY_TOTAL) <= 0)
                 .filter(listing -> inventoryCountByItemId(listing.itemId()) == 0)
-                .filter(listing -> comparableListingCount(listing, listings) >= MIN_PRICE_COMPARABLES)
-                .filter(listing -> averageTotal(listing, now).compareTo(listing.priceUpperBound()) > 0)
                 .max(Comparator.comparing(listing ->
                         averageTotal(listing, now).subtract(listing.priceUpperBound())))
                 .orElse(null);
-    }
-
-    private int comparableListingCount(MarketListing candidate, List<MarketListing> listings) {
-        int count = 0;
-        for (MarketListing listing : listings) {
-            if (listing.quantity() > 0
-                    && listing.identityKey().equals(candidate.identityKey())
-                    && (listing.page() != candidate.page() || listing.slot() != candidate.slot())) {
-                count++;
-            }
-        }
-        return count;
     }
 
     private BigDecimal averageTotal(MarketListing listing, long now) {

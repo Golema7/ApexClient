@@ -41,7 +41,7 @@ final class AuctionScannerScreen extends Screen {
         graphics.drawString(this.minecraft.font, "ApexClient Auction Scanner", textLeft, top + 12, 0xFFFFFFFF, false);
         graphics.drawString(
                 this.minecraft.font,
-                "Auto Flip uses peer /ah average; /orders rows are separate estimates",
+                "AH-average opportunities | based on other fresh matching listings",
                 textLeft,
                 top + 25,
                 0xFFB6C4CE,
@@ -73,7 +73,7 @@ final class AuctionScannerScreen extends Screen {
             String proceeds = formatMoney(opportunity.conservativeProceeds());
             String profit = "+" + formatMoney(opportunity.conservativeProfit());
             String details = (purchase.approximatePrice() ? "~" : "")
-                    + "Buy " + buyPrice + " | orders >= " + proceeds
+                    + "Buy " + buyPrice + " | AH avg >= " + proceeds
                     + " | gross " + profit + " | " + formatPercent(opportunity.returnPercent());
             graphics.drawString(this.minecraft.font, trimToWidth(details, contentWidth), textLeft, top + 89 + shown * 31, 0xFF68D391, false);
             shown++;
@@ -82,7 +82,7 @@ final class AuctionScannerScreen extends Screen {
         if (shown == 0) {
             String message = scanner.pageCount(MarketSide.AUCTION) == 0
                     ? "Open /ah to capture auction listings."
-                    : "No positive /orders match in the captured pages.";
+                    : "No positive AH-average match in the captured pages.";
             graphics.drawString(this.minecraft.font, trimToWidth(message, contentWidth), textLeft, top + 86, 0xFFFFFFFF, false);
             graphics.drawString(
                     this.minecraft.font,

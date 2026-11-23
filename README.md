@@ -4,7 +4,7 @@ A client-side Fabric mod for Minecraft Java 1.21.11. The first feature is an auc
 
 ## Auction scanner and Auto Flip
 
-The scanner reads item tooltips from visible /ah and /orders screens. It records pages and ranks positive order matches. Auto Flip is opt-in through the scanner screen's Start Auto Flip button.
+The scanner reads item tooltips from visible /ah and /orders screens. It ranks Auto Flip candidates from fresh /ah listings with matching item identity; /orders captures do not determine the AH relist price. Auto Flip is opt-in through the scanner screen's Start Auto Flip button.
 
 When enabled, Auto Flip:
 
