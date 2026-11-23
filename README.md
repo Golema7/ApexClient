@@ -24,7 +24,7 @@ Captures are limited to pages the client sees, stay in memory for the current ga
 
 1. Install Fabric Loader for Minecraft Java 1.21.11 and put Fabric API in the same mods folder.
 2. Build with Java 21 using gradlew.bat build on Windows.
-3. Copy build/libs/apexclient-0.2.0.jar into the Minecraft mods folder.
+3. Copy build/libs/apexclient-0.2.1.jar into the Minecraft mods folder.
 4. Join the private test server and open the scanner with M.
 5. Click Start Auto Flip to scan, buy, and relist when the configured conditions pass. Click Stop Auto Flip to stop the process.
 
