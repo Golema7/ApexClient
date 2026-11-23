@@ -49,6 +49,7 @@ final class AutoFlipBot {
     private int expectedQuantity;
     private long pageOpenedAt;
     private String targetItemId;
+    private String lastSkippedOpportunityKey = "";
     private MarketListing candidate;
     private BigDecimal targetSellPrice = BigDecimal.ZERO;
     private Screen purchaseScreen;
@@ -86,6 +87,7 @@ final class AutoFlipBot {
         state = State.OPEN_AH;
         stateTicks = 0;
         candidate = null;
+        lastSkippedOpportunityKey = "";
         visitedPages.clear();
         scanner.clearAuctionPages();
         status = "Starting: scanning /ah pages...";
@@ -247,9 +249,27 @@ final class AutoFlipBot {
     }
 
     private void finishScan(Minecraft client) {
-        candidate = bestCandidate(System.currentTimeMillis());
+        long now = System.currentTimeMillis();
+        candidate = bestCandidate(now);
         if (candidate == null) {
-            status = "No safe flip found; scanning again shortly.";
+            MarketOpportunity orderMatch = scanner.opportunities().stream()
+                    .filter(opportunity -> opportunity.isFresh(now))
+                    .findFirst()
+                    .orElse(null);
+            if (orderMatch != null) {
+                MarketListing purchase = orderMatch.purchase();
+                String opportunityKey = purchase.identityKey() + ":" + purchase.page() + ":"
+                        + purchase.slot() + ":" + purchase.priceUpperBound().toPlainString();
+                status = "An /orders match exists, but no positive comparable /ah-average relist was found.";
+                if (!opportunityKey.equals(lastSkippedOpportunityKey)) {
+                    lastSkippedOpportunityKey = opportunityKey;
+                    notify(client, "Found an /orders-based profit suggestion for "
+                            + purchase.itemName() + " x" + purchase.quantity()
+                            + ", but the comparable /ah average does not support a profitable relist. Skipping it and continuing.");
+                }
+            } else {
+                status = "No qualifying /ah-average flip found; scanning again shortly.";
+            }
             state = State.COOLDOWN;
             stateTicks = 0;
             return;
