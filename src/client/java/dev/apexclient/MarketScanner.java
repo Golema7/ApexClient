@@ -127,7 +127,7 @@ final class MarketScanner {
             }
 
             List<Component> tooltip = stack.getTooltipLines(
-                    Item.TooltipContext.create(client.player.level()),
+                    Item.TooltipContext.of(client.player.level()),
                     client.player,
                     TooltipFlag.Default.NORMAL
             );
