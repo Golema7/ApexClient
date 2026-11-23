@@ -41,7 +41,7 @@ final class AuctionScannerScreen extends Screen {
         graphics.drawString(this.minecraft.font, "ApexClient Auction Scanner", textLeft, top + 12, 0xFFFFFFFF, false);
         graphics.drawString(
                 this.minecraft.font,
-                "AH average-price estimates | auto trading is user-toggleable",
+                "Auto Flip uses peer /ah average; /orders rows are separate estimates",
                 textLeft,
                 top + 25,
                 0xFFB6C4CE,
@@ -106,7 +106,7 @@ final class AuctionScannerScreen extends Screen {
 
         graphics.drawString(
                 this.minecraft.font,
-                "Per-stack cap $500,000 | 20% minimum gross return | fees unknown",
+                "Per-stack cap $500,000 | positive /ah-average margin | fees unknown",
                 textLeft,
                 top + panelHeight - 17,
                 0xFF8F9DA8,

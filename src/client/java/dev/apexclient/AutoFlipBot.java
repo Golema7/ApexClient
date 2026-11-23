@@ -3,8 +3,10 @@ package dev.apexclient;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ClickType;
@@ -28,8 +30,7 @@ import java.util.regex.Pattern;
 
 final class AutoFlipBot {
     private static final BigDecimal MAX_BUY_TOTAL = new BigDecimal("500000");
-    private static final BigDecimal MIN_RETURN_PERCENT = new BigDecimal("20");
-    private static final int MIN_PRICE_SAMPLES = 3;
+    private static final int MIN_PRICE_COMPARABLES = 2;
     private static final int MAX_SCAN_PAGES = 30;
     private static final Pattern AUCTION_PAGE = Pattern.compile(
             "^auction.*?page\\s*(\\d+)",
@@ -91,7 +92,7 @@ final class AutoFlipBot {
         if (client.screen instanceof AuctionScannerScreen) {
             client.setScreen(null);
         }
-        notify(client, "Auto Flip started. Max buy is $500,000 per stack; minimum gross return is 20%.");
+        notify(client, "Auto Flip started. Max buy is $500,000 per stack; qualifying buys must beat the comparable /ah average.");
     }
 
     void requestStop(Minecraft client) {
@@ -258,9 +259,13 @@ final class AutoFlipBot {
         targetItemId = candidate.itemId();
         expectedQuantity = candidate.quantity();
         targetSellPrice = averageTotal(candidate, System.currentTimeMillis());
-        status = "Found " + candidate.itemName() + " x" + expectedQuantity
-                + "; returning to its listing to verify it.";
-        notify(client, status);
+        BigDecimal estimatedProfit = targetSellPrice.subtract(candidate.priceUpperBound());
+        status = "Profitable /ah-average flip found: " + candidate.itemName() + " x" + expectedQuantity
+                + " | buy $" + money(candidate.priceUpperBound())
+                + " | target $" + money(targetSellPrice)
+                + " | estimated gross +$" + money(estimatedProfit)
+                + "; verifying the listing.";
+        notifyOpportunity(client, status);
         client.setScreen(null);
         state = State.REOPEN_AH;
         stateTicks = 0;
@@ -494,44 +499,40 @@ final class AutoFlipBot {
 
     private MarketListing bestCandidate(long now) {
         List<MarketListing> listings = scanner.freshListings(MarketSide.AUCTION, now);
-        Map<String, List<BigDecimal>> unitPrices = new TreeMap<>();
-        for (MarketListing listing : listings) {
-            if (listing.quantity() <= 0) {
-                continue;
-            }
-            BigDecimal unit = listing.priceLowerBound()
-                    .divide(BigDecimal.valueOf(listing.quantity()), 8, RoundingMode.DOWN);
-            unitPrices.computeIfAbsent(listing.identityKey(), ignored -> new ArrayList<>()).add(unit);
-        }
-
         return listings.stream()
+                .filter(listing -> listing.quantity() > 0)
                 .filter(listing -> listing.priceUpperBound().compareTo(MAX_BUY_TOTAL) <= 0)
                 .filter(listing -> inventoryCountByItemId(listing.itemId()) == 0)
-                .filter(listing -> unitPrices.getOrDefault(listing.identityKey(), List.of()).size() >= MIN_PRICE_SAMPLES)
-                .filter(listing -> {
-                    BigDecimal sale = averageTotal(listing, unitPrices.get(listing.identityKey()));
-                    BigDecimal profit = sale.subtract(listing.priceUpperBound());
-                    if (profit.signum() <= 0) {
-                        return false;
-                    }
-                    BigDecimal returnPercent = profit.multiply(BigDecimal.valueOf(100))
-                            .divide(listing.priceUpperBound().max(BigDecimal.ONE), 2, RoundingMode.HALF_UP);
-                    return returnPercent.compareTo(MIN_RETURN_PERCENT) >= 0;
-                })
-                .max(Comparator.comparing(listing -> averageTotal(listing, unitPrices.get(listing.identityKey()))
-                        .subtract(listing.priceUpperBound())))
+                .filter(listing -> comparableListingCount(listing, listings) >= MIN_PRICE_COMPARABLES)
+                .filter(listing -> averageTotal(listing, now).compareTo(listing.priceUpperBound()) > 0)
+                .max(Comparator.comparing(listing ->
+                        averageTotal(listing, now).subtract(listing.priceUpperBound())))
                 .orElse(null);
     }
 
+    private int comparableListingCount(MarketListing candidate, List<MarketListing> listings) {
+        int count = 0;
+        for (MarketListing listing : listings) {
+            if (listing.quantity() > 0
+                    && listing.identityKey().equals(candidate.identityKey())
+                    && (listing.page() != candidate.page() || listing.slot() != candidate.slot())) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     private BigDecimal averageTotal(MarketListing listing, long now) {
-        List<BigDecimal> values = new ArrayList<>();
+        List<BigDecimal> comparableUnitPrices = new ArrayList<>();
         for (MarketListing other : scanner.freshListings(MarketSide.AUCTION, now)) {
-            if (other.identityKey().equals(listing.identityKey()) && other.quantity() > 0) {
-                values.add(other.priceLowerBound()
+            if (other.identityKey().equals(listing.identityKey())
+                    && other.quantity() > 0
+                    && (other.page() != listing.page() || other.slot() != listing.slot())) {
+                comparableUnitPrices.add(other.priceLowerBound()
                         .divide(BigDecimal.valueOf(other.quantity()), 8, RoundingMode.DOWN));
             }
         }
-        return averageTotal(listing, values);
+        return averageTotal(listing, comparableUnitPrices);
     }
 
     private static BigDecimal averageTotal(MarketListing listing, List<BigDecimal> unitPrices) {
@@ -687,6 +688,15 @@ final class AutoFlipBot {
         if (client.gui != null) {
             client.gui.getChat().addMessage(Component.literal("[ApexClient] " + message));
         }
+    }
+
+    private void notifyOpportunity(Minecraft client, String message) {
+        notify(client, message);
+        client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING, 1.0F));
+    }
+
+    private static String money(BigDecimal amount) {
+        return amount.setScale(0, RoundingMode.FLOOR).toPlainString();
     }
 
     private enum State {
